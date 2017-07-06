@@ -1,0 +1,22 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Opt4J Operators
+Bundle-SymbolicName: org.opt4j.operators;singleton:=true
+Bundle-Version: 2.11.0.qualifier
+Bundle-ClassPath: .
+Bundle-Vendor: fortiss GmbH
+Bundle-Localization: plugin
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+Bundle-ActivationPolicy: lazy
+Bundle-Activator: org.opt4j.operators.Opt4JOperatorsActivator
+Require-Bundle: org.eclipse.core.runtime;bundle-version="3.9.100";visibility:=reexport,
+ org.eclipse.equinox.registry,
+ org.eclipse.osgi
+Export-Package: org.opt4j.operators,
+ org.opt4j.operators.algebra,
+ org.opt4j.operators.copy,
+ org.opt4j.operators.crossover,
+ org.opt4j.operators.diversity,
+ org.opt4j.operators.mutate,
+ org.opt4j.operators.neighbor,
+ org.opt4j.operators.normalize
