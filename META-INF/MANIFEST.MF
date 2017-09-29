@@ -11,7 +11,8 @@ Bundle-ActivationPolicy: lazy
 Bundle-Activator: org.opt4j.operators.Opt4JOperatorsActivator
 Require-Bundle: org.eclipse.core.runtime;bundle-version="3.9.100";visibility:=reexport,
  org.eclipse.equinox.registry,
- org.eclipse.osgi
+ org.eclipse.osgi,
+ org.opt4j.core;bundle-version="2.11.0";visibility:=reexport
 Export-Package: org.opt4j.operators,
  org.opt4j.operators.algebra,
  org.opt4j.operators.copy,
@@ -20,3 +21,4 @@ Export-Package: org.opt4j.operators,
  org.opt4j.operators.mutate,
  org.opt4j.operators.neighbor,
  org.opt4j.operators.normalize
+Import-Package: com.google.inject.binder
