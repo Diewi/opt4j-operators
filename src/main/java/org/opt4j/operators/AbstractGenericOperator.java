@@ -40,10 +40,10 @@ import org.opt4j.core.Genotype;
 import org.opt4j.core.genotype.CompositeGenotype;
 import org.opt4j.core.optimizer.IncompatibilityException;
 import org.opt4j.core.optimizer.Operator;
+import org.opt4j.core.start.Opt4JTask;
 import org.opt4j.core.start.Parameters;
 
 import com.google.inject.Inject;
-import com.google.inject.Injector;
 
 /**
  * Superclass for {@link GenericOperator}s.
@@ -225,7 +225,7 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 		protected Map<OperatorPredicate, P> map = new HashMap<OperatorPredicate, P>();
 
 		@Inject
-		protected Injector injector;
+		protected Opt4JTask opt4JTask;
 
 		protected Collection<Class<? extends P>> clazzes = new ArrayList<Class<? extends P>>();
 
@@ -237,7 +237,7 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 			Map<OperatorPredicate, P> map = new HashMap<OperatorPredicate, P>();
 
 			for (Class<? extends P> clazz : clazzes) {
-				P p = injector.getInstance(clazz);
+				P p = opt4JTask.getInstance(clazz);
 				map.put(new OperatorClassPredicate(getTarget((Operator<?>) p)), p);
 			}
 
