@@ -24,6 +24,7 @@ package org.opt4j.operators.copy;
 
 import org.opt4j.core.Genotype;
 import org.opt4j.core.optimizer.Operator;
+import org.opt4j.operators.normalize.Normalize;
 
 import com.google.inject.ImplementedBy;
 
@@ -48,4 +49,12 @@ public interface Copy<G extends Genotype> extends Operator<G> {
 	 */
 	public G copy(G genotype);
 
+	/* (non-Javadoc)
+	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	default Class<? extends Operator<?>> getOperatorType() {
+		return (Class<? extends Operator<?>>)(Class<?>)Copy.class;
+	}
 }

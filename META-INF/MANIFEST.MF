@@ -20,5 +20,6 @@ Export-Package: org.opt4j.operators,
  org.opt4j.operators.diversity,
  org.opt4j.operators.mutate,
  org.opt4j.operators.neighbor,
- org.opt4j.operators.normalize
-Import-Package: com.google.inject.binder
+ org.opt4j.operators.normalize,
+ org.opt4j.operators.selection
+Import-Package: com.google.common.collect;version="21.0.0"

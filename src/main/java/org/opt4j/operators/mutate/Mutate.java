@@ -48,4 +48,13 @@ public interface Mutate<G extends Genotype> extends Operator<G> {
 	 *            the mutation rate
 	 */
 	public void mutate(G genotype, double p);
+	
+	/* (non-Javadoc)
+	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	default Class<? extends Operator<?>> getOperatorType() {
+		return (Class<? extends Operator<?>>)(Class<?>) Mutate.class;
+	}
 }

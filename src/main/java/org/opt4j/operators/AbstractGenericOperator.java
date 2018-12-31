@@ -23,26 +23,31 @@
 
 package org.opt4j.operators;
 
+import static com.google.common.collect.MultimapBuilder.hashKeys;
+import static com.google.common.collect.MultimapBuilder.treeKeys;
+
 import java.lang.reflect.Type;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-
 import org.opt4j.core.Genotype;
+import org.opt4j.core.Individual;
 import org.opt4j.core.genotype.CompositeGenotype;
 import org.opt4j.core.optimizer.IncompatibilityException;
 import org.opt4j.core.optimizer.Operator;
 import org.opt4j.core.start.Opt4JTask;
 import org.opt4j.core.start.Parameters;
+import org.opt4j.operators.selection.IOperatorSelector;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import com.google.inject.Inject;
 
 /**
@@ -89,9 +94,12 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 
 	}
 
-	protected SortedMap<Class<? extends Genotype>, O> classOperators = new TreeMap<Class<? extends Genotype>, O>(
-			new ClassComparator());
-	protected Map<OperatorPredicate, O> genericOperators = new HashMap<OperatorPredicate, O>();
+	protected Map<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>, IOperatorSelector>
+			operatorSelectors;
+	protected Multimap<Class<? extends Genotype>, O> classOperators =
+			treeKeys(new ClassComparator()).arrayListValues().build();
+	protected Multimap<OperatorPredicate, O> genericOperators =
+			hashKeys().arrayListValues().build();
 
 	protected List<Class<? extends Q>> cldef = new ArrayList<Class<? extends Q>>();
 
@@ -121,11 +129,11 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 			classOperators.put(CompositeGenotype.class, null);
 			holder.add(cldef);
 
-			for (Entry<OperatorPredicate, Q> entry : holder.getMap().entrySet()) {
-				addOperator(entry.getKey(), (O) entry.getValue());
+			for (Entry<OperatorPredicate, Collection<Q>> entry : holder.getMap().asMap().entrySet()) {
+				entry.getValue().forEach( v -> addOperator(entry.getKey(), (O)v));
 			}
-
 		}
+		this.operatorSelectors = holder.getSelectors();
 	}
 
 	/*
@@ -144,6 +152,18 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 			genericOperators.put(predicate, operator);
 		}
 	}
+	
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see org.opt4j.operator.GenericOperator#addOperatorSelectororg.opt4j.core.problem
+	 * .Genotype, org.opt4j.operator.selection.IOperatorSelector)
+	 */
+	@Override
+	public void addOperatorSelector(SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>
+			selectorKey, IOperatorSelector selector) {
+		operatorSelectors.put(selectorKey, selector);
+	}
 
 	/*
 	 * (non-Javadoc)
@@ -154,28 +174,79 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 	 */
 	@Override
 	public O getOperator(Genotype genotype) {
+		// Exit early for CompositeGenotypes: Defining operators on them is invalid.
+		if(genotype instanceof CompositeGenotype) {
+			return null;
+		}
+		
+		List<O> applicableOperators = new ArrayList<>();
 		if (classOperators.containsKey(genotype.getClass())) {
-			return classOperators.get(genotype.getClass());
+			applicableOperators.addAll(classOperators.get(genotype.getClass()));
 		} else {
 			// Search for a predicate that satisfies the genotype.
-			for (Entry<OperatorPredicate, O> predicate : genericOperators.entrySet()) {
+			for (Entry<OperatorPredicate, O> predicate : genericOperators.entries()) {
 				if (predicate.getKey().evaluate(genotype)) {
-					return predicate.getValue();
+					applicableOperators.add(predicate.getValue());
 				}
 			}
 
 			// Searches for a superclass that is registered as an operator.
-			for (Entry<Class<? extends Genotype>, O> entry : classOperators.entrySet()) {
+			Collection<Entry<Class<? extends Genotype>, O>> newOperatorsDefs = null;
+			for (Entry<Class<? extends Genotype>, O> entry : classOperators.entries()) {
+				if(entry.getValue() == null) {
+					continue;
+				}
 				Class<? extends Genotype> c = entry.getKey();
 				if (c.isAssignableFrom(genotype.getClass())) {
+					if(newOperatorsDefs == null) {
+						newOperatorsDefs = new ArrayList<>();
+					}
 					O operator = entry.getValue();
-					addOperator(new OperatorClassPredicate(genotype.getClass()), operator);
-					return operator;
+					SimpleEntry<Class<? extends Genotype>, O> newEntry =
+							new SimpleEntry<>(genotype.getClass(), operator);
+					newOperatorsDefs.add(newEntry);
+					applicableOperators.add(operator);
 				}
 			}
-			throw new IncompatibilityException("No handler found for " + genotype.getClass() + " in " + this.getClass());
+			newOperatorsDefs.forEach(e -> classOperators.put(e.getKey(), e.getValue()));
 		}
-
+		if(applicableOperators.isEmpty()) {
+			throw new IncompatibilityException("No handler found for " + genotype.getClass() +
+					" in " + this.getClass());
+		}
+		
+		return selectApplicableOperator(applicableOperators, genotype);
+	}
+	
+	/**
+	 * Returns an {@link Operator} from the given list of {@link Operator}s that are applicable to
+	 * the given {@link Genotype}. If multiple {@link Operator}s of the same type, such as
+	 * mutation, an {@link IOperatorSelector} must be bound that defines a strategy to select one
+	 * operator per round and {@link Individual}.
+	 * 
+	 * The selection logic is as follows:
+	 * * Get the registered {@link IOperatorSelector} if available.
+	 * * If no selector is defined and only one {@link Operator} is applicable select this
+	 *   {@link Operator}.
+	 * * If multiple {@link Operator}s are given, ensure the existence of an
+	 *   {@link IOperatorSelector} or throw an {@link IncompatibilityException}.
+	 * * Return the {@link Operator} selected by the registered {@link IOperatorSelector}.
+	 */
+	private O selectApplicableOperator(List<O> applicableOperators, Genotype genotype) {
+		Class<? extends Operator<?>> operatorType = applicableOperators.get(0).getOperatorType();
+		SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>> selectorKey =
+				new SimpleEntry<>(genotype.getClass(), operatorType);
+		IOperatorSelector operatorSelector = operatorSelectors.get(selectorKey);
+		// Do not require an IOperatorSelector for 1:1 associations of Genotypes and Operators.
+		if(operatorSelector == null && applicableOperators.size() == 1) {
+			return applicableOperators.get(0);
+		}
+		if(operatorSelector == null) {
+			throw new IncompatibilityException("Multiple Operators of the same kind defined for " +
+					genotype.getClass() + " but no " + IOperatorSelector.class.getSimpleName() + 
+					"is provided (required).");
+		}
+		return operatorSelector.select(applicableOperators, genotype);
 	}
 
 	/*
@@ -222,7 +293,17 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 	protected static class OperatorHolder<P> {
 
 		@Inject(optional = true)
-		protected Map<OperatorPredicate, P> map = new HashMap<OperatorPredicate, P>();
+		protected Map<OperatorPredicate, P> map;
+		
+		@Inject(optional = true)
+		protected Map<OperatorPredicate, Set<P>> multimap;
+		
+		@Inject(optional = true)
+		Map<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>,
+			IOperatorSelector> operatorSelectors;
+		
+		@Inject(optional = true)
+		SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>> test;
 
 		@Inject
 		protected Opt4JTask opt4JTask;
@@ -233,23 +314,47 @@ public abstract class AbstractGenericOperator<O extends Operator<?>, Q extends O
 			this.clazzes.addAll(clazzes);
 		}
 
-		public Map<OperatorPredicate, P> getMap() {
-			Map<OperatorPredicate, P> map = new HashMap<OperatorPredicate, P>();
+		public Multimap<OperatorPredicate, P> getMap() {
+			Multimap<OperatorPredicate, P> multimap = HashMultimap.create();
+			if(this.multimap != null) {
+				for(Entry<OperatorPredicate, Set<P>> operators : this.multimap.entrySet()) {
+					multimap.putAll(operators.getKey(), operators.getValue());
+				}
+			}
+			for(Entry<OperatorPredicate, P> entry : this.map.entrySet()) {
+				if(!multimap.containsKey(entry.getKey())) {
+					multimap.put(entry.getKey(), entry.getValue());
+				}
+			}
 
 			for (Class<? extends P> clazz : clazzes) {
 				P p = opt4JTask.getInstance(clazz);
-				map.put(new OperatorClassPredicate(getTarget((Operator<?>) p)), p);
+				multimap.put(new OperatorClassPredicate(getTarget((Operator<?>) p)), p);
 			}
-
-			for (Entry<OperatorPredicate, P> entry : this.map.entrySet()) {
+			
+			Set<OperatorPredicate> replaceSet = new HashSet<>();
+			for (Entry<OperatorPredicate, P> entry : multimap.entries()) {
 				OperatorPredicate predicate = entry.getKey();
 				if (predicate instanceof OperatorVoidPredicate) {
-					predicate = new OperatorClassPredicate(getTarget((Operator<?>) entry.getValue()));
+					predicate = new OperatorClassPredicate(getTarget((Operator<?>)entry.getValue()));
+					replaceSet.add(predicate);
 				}
-				map.put(predicate, entry.getValue());
+			}
+			
+			for(OperatorPredicate key : replaceSet) {
+				Collection<P> operators = multimap.get(key);
+				multimap.removeAll(key);
+				multimap.putAll(key, operators);
 			}
 
-			return map;
+			return multimap;
+		}
+		
+		public Map<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>, IOperatorSelector> getSelectors() {
+			if(operatorSelectors != null) {
+				return operatorSelectors;
+			}
+			return Collections.emptyMap();
 		}
 	}
 

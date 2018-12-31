@@ -25,6 +25,7 @@ package org.opt4j.operators.crossover;
 
 import org.opt4j.core.Genotype;
 import org.opt4j.core.optimizer.Operator;
+import org.opt4j.operators.normalize.Normalize;
 
 import com.google.inject.ImplementedBy;
 
@@ -50,4 +51,13 @@ public interface Crossover<G extends Genotype> extends Operator<G> {
 	 * @return The resulting pair of offspring genotypes
 	 */
 	public Pair<G> crossover(G parent1, G parent2);
+	
+	/* (non-Javadoc)
+	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	default Class<? extends Operator<?>> getOperatorType() {
+		return (Class<? extends Operator<?>>)(Class<?>) Crossover.class;
+	}
 }

@@ -23,6 +23,10 @@
 
 package org.opt4j.operators;
 
+import static com.google.inject.multibindings.MapBinder.newMapBinder;
+
+import java.util.AbstractMap.SimpleEntry;
+
 import org.opt4j.core.Genotype;
 import org.opt4j.core.config.Icons;
 import org.opt4j.core.config.annotations.Category;
@@ -34,6 +38,7 @@ import org.opt4j.core.start.Opt4JModule;
 import org.opt4j.operators.AbstractGenericOperator.OperatorClassPredicate;
 import org.opt4j.operators.AbstractGenericOperator.OperatorPredicate;
 import org.opt4j.operators.AbstractGenericOperator.OperatorVoidPredicate;
+import org.opt4j.operators.selection.IOperatorSelector;
 
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.MapBinder;
@@ -72,9 +77,10 @@ public abstract class OperatorModule<P extends Operator> extends Opt4JModule {
 	 *            the operator
 	 */
 	public void addOperator(OperatorPredicate predicate, Class<? extends P> operator) {
-		MapBinder<OperatorPredicate, P> map = MapBinder.newMapBinder(binder(), new TypeLiteral<OperatorPredicate>() {
+		MapBinder<OperatorPredicate, P> map = newMapBinder(binder(), new TypeLiteral<OperatorPredicate>() {
 		}, getOperatorTypeLiteral());
 		map.addBinding(predicate).to(operator);
+		map.permitDuplicates();
 	}
 
 	protected abstract TypeLiteral<P> getOperatorTypeLiteral();
@@ -91,5 +97,40 @@ public abstract class OperatorModule<P extends Operator> extends Opt4JModule {
 	public void addOperator(Class<? extends Genotype> genotype, Class<? extends P> operator) {
 		addOperator(new OperatorClassPredicate(genotype), operator);
 	}
-
+	
+	/**
+	 * Adds an {@link IOperatorSelector} that decides which {@link Operator} is executed in case
+	 * multiple {@link Operator}s are registered for a {@link Genotype}.
+	 * 
+	 * @param genotype
+	 *            {@link Genotype} type for which the {@link IOperatorSelector} is applicable.
+	 * @param selector
+	 *            The {@link IOperatorSelector} to add.
+	 */
+	public void addOperatorSelector(Class<? extends Genotype> genotype,
+			Class<? extends Operator> operatorType, Class<? extends IOperatorSelector> selector) {
+		MapBinder<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator>>, IOperatorSelector> map =
+				newMapBinder(binder(), new TypeLiteral<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator>>>() {},
+						new TypeLiteral<IOperatorSelector>() {});
+		map.addBinding(new SimpleEntry<>(genotype, operatorType)).to(selector);
+	}
+	
+	/**
+	 * Adds an {@link IOperatorSelector} that decides which {@link Operator} is executed in case
+	 * multiple {@link Operator}s are registered for a {@link Genotype}.
+	 * 
+	 * @param genotype
+	 *            {@link Genotype} type for which the {@link IOperatorSelector} is applicable.
+	 * @param selector
+	 *            The {@link IOperatorSelector} to add.
+	 */
+	@SuppressWarnings("unchecked")
+	public void addOperatorSelectorInstance(Class<? extends Genotype> genotype,
+			Class<? extends Operator> operatorType, IOperatorSelector selector) {
+		MapBinder<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>, IOperatorSelector> map =
+				newMapBinder(binder(), new TypeLiteral<SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>>() {},
+						new TypeLiteral<IOperatorSelector>() {});
+		map.addBinding(new SimpleEntry<Class<? extends Genotype>, Class<? extends Operator<?>>>(genotype,
+				(Class<? extends Operator<?>>) operatorType)).toInstance(selector);
+	}
 }

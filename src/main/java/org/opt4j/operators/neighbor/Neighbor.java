@@ -47,4 +47,12 @@ public interface Neighbor<G extends Genotype> extends Operator<G> {
 	 */
 	public void neighbor(G genotype);
 
+	/* (non-Javadoc)
+	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	default Class<? extends Operator<?>> getOperatorType() {
+		return (Class<? extends Operator<?>>)(Class<?>) Neighbor.class;
+	}
 }

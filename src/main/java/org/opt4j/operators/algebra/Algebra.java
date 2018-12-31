@@ -25,6 +25,7 @@ package org.opt4j.operators.algebra;
 
 import org.opt4j.core.Genotype;
 import org.opt4j.core.optimizer.Operator;
+import org.opt4j.operators.normalize.Normalize;
 
 import com.google.inject.ImplementedBy;
 
@@ -57,5 +58,13 @@ public interface Algebra<G extends Genotype> extends Operator<G> {
 	 * @return the resulting genotype
 	 */
 	public G algebra(Term term, Genotype... genotypes);
-
+	
+	/* (non-Javadoc)
+	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	default Class<? extends Operator<?>> getOperatorType() {
+		return (Class<? extends Operator<?>>)(Class<?>) Normalize.class;
+	}
 }

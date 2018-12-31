@@ -23,15 +23,18 @@
 package org.opt4j.operators;
 
 import java.util.Collection;
+import java.util.AbstractMap.SimpleEntry;
 
 import org.opt4j.core.Genotype;
 import org.opt4j.core.optimizer.Operator;
 import org.opt4j.operators.AbstractGenericOperator.OperatorPredicate;
+import org.opt4j.operators.selection.IOperatorSelector;
 
 /**
  * The {@link GenericOperator} is an interface for generic operators.
  * 
  * @author lukasiewycz
+ * @author diewald
  * 
  * @param <O>
  *            the operator
@@ -46,6 +49,18 @@ public interface GenericOperator<O extends Operator<?>> {
 	 *            The {@link Operator}
 	 */
 	public void addOperator(OperatorPredicate predicate, O operator);
+	
+	/**
+	 * Adds an {@link IOperatorSelector} that decides which {@link Operator} is executed in case
+	 * multiple {@link Operator}s are registered for a {@link Genotype}.
+	 * 
+	 * @param genotype
+	 *            {@link Genotype} type for which the {@link IOperatorSelector} is applicable.
+	 * @param selector
+	 *            The {@link IOperatorSelector} to add.
+	 */
+	public void addOperatorSelector(SimpleEntry<Class<? extends Genotype>,
+			Class<? extends Operator<?>>> selectorKey, IOperatorSelector selector);
 
 	/**
 	 * Returns the {@link Operator} for a specific {@link Genotype}.

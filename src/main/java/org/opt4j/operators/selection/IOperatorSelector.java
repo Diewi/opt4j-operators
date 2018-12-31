@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Opt4J
+ * Copyright (c) 2018 Opt4J
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,46 +19,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
- 
 
-package org.opt4j.operators.diversity;
+package org.opt4j.operators.selection;
+
+import java.util.List;
 
 import org.opt4j.core.Genotype;
-import org.opt4j.core.Individual;
 import org.opt4j.core.optimizer.Operator;
 
-import com.google.inject.ImplementedBy;
 
 /**
- * The {@link Diversity} determines the genetic diversity of two
- * {@link Individual}s. The genetic diversity is 0 if both {@link Genotype}s are
- * equal and 1 of they are of maximum diversity.
+ * Defines a strategy that selects one {@link Operator} out of {@code n} {@link Operator}s
+ * applicable for a single {@link Genotype}.
  * 
- * @author glass, lukasiewycz
- * 
- * @param <G>
- *            the type of genotype
+ * @author diewald
  */
-@ImplementedBy(DiversityGenericImplementation.class)
-public interface Diversity<G extends Genotype> extends Operator<G> {
-
+public interface IOperatorSelector {
+	
+	
 	/**
-	 * Returns the genetic diversity of two {@link Genotype}s.
+	 * Selects one {@link Operator} out of {@code n} {@link Operator}s applicable for a single
+	 * {@link Genotype}.
 	 * 
-	 * @param a
-	 *            the first genotype
-	 * @param b
-	 *            the second genotype
-	 * @return the diversity of two genotypes
+	 * @param applicableOperators list of applicable {@link Operator}s.
+	 * @param genotype {@link Genotype} for which the {@link Operator} shall be applied.
+	 * @return selected {@link Operator} from the input list.
 	 */
-	public double diversity(G a, G b);
-
-	/* (non-Javadoc)
-	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
-	 */
-	@SuppressWarnings("unchecked")
-	@Override
-	default Class<? extends Operator<?>> getOperatorType() {
-		return (Class<? extends Operator<?>>)(Class<?>) Diversity.class;
-	}
+	<O extends Operator<?>> O select(List<O> applicableOperators, Genotype genotype);
 }

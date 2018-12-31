@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 Opt4J
+ * Copyright (c) 2018 Opt4J
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,46 +19,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *******************************************************************************/
- 
+package org.opt4j.operators.selection;
 
-package org.opt4j.operators.diversity;
+import java.util.List;
+import java.util.Random;
 
 import org.opt4j.core.Genotype;
-import org.opt4j.core.Individual;
 import org.opt4j.core.optimizer.Operator;
 
-import com.google.inject.ImplementedBy;
+import com.google.inject.Inject;
 
 /**
- * The {@link Diversity} determines the genetic diversity of two
- * {@link Individual}s. The genetic diversity is 0 if both {@link Genotype}s are
- * equal and 1 of they are of maximum diversity.
+ * Selection strategy that randomly selects one {@link Operator} out of the given {@link Operator}s.
  * 
- * @author glass, lukasiewycz
- * 
- * @param <G>
- *            the type of genotype
+ * @author diewald
  */
-@ImplementedBy(DiversityGenericImplementation.class)
-public interface Diversity<G extends Genotype> extends Operator<G> {
-
+public class RandomOperatorSelector implements IOperatorSelector {
+	
+	/** Utilized random number generator. */
+	private Random randomGenerator;
+	
 	/**
-	 * Returns the genetic diversity of two {@link Genotype}s.
+	 * Constructor.
 	 * 
-	 * @param a
-	 *            the first genotype
-	 * @param b
-	 *            the second genotype
-	 * @return the diversity of two genotypes
+	 * @param randomGenerator {@link Random} generator to use for the selection.
 	 */
-	public double diversity(G a, G b);
+	@Inject
+	public RandomOperatorSelector(Random randomGenerator) {
+		this.randomGenerator = randomGenerator;
+	}
 
 	/* (non-Javadoc)
-	 * @see org.opt4j.core.optimizer.Operator#getOperatorType()
+	 * @see org.opt4j.operators.selection.IOperatorSelector#select(java.util.List)
 	 */
-	@SuppressWarnings("unchecked")
 	@Override
-	default Class<? extends Operator<?>> getOperatorType() {
-		return (Class<? extends Operator<?>>)(Class<?>) Diversity.class;
+	public <O extends Operator<?>> O select(List<O> applicableOperators, Genotype genotype) {
+		int selIdx = randomGenerator.nextInt(applicableOperators.size());
+		return applicableOperators.get(selIdx);
 	}
 }
